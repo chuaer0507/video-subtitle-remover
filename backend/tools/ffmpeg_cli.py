@@ -1,5 +1,6 @@
 import os
 import stat
+import sys
 
 import platform
 from .common_tools import merge_big_file_if_not_exists
@@ -21,7 +22,8 @@ class FFmpegCLI:
         return cls._instance
     
     def __init__(self):
-        os.chmod(self.ffmpeg_path, stat.S_IRWXU + stat.S_IRWXG + stat.S_IRWXO)
+        if not os.access(self.ffmpeg_path, os.X_OK):
+            os.chmod(self.ffmpeg_path, stat.S_IRWXU + stat.S_IRWXG + stat.S_IRWXO)
         
     @property
     def ffmpeg_path(self):
@@ -33,4 +35,11 @@ class FFmpegCLI:
         elif system == "Linux":
             return os.path.join(BASE_DIR, 'ffmpeg',  'linux_x64', 'ffmpeg')
         else:
+            # Use the FFmpeg wheel matching the current macOS architecture.
+            try:
+                import imageio_ffmpeg
+                return imageio_ffmpeg.get_ffmpeg_exe()
+            except ImportError:
+                if getattr(sys, 'frozen', False):
+                    raise RuntimeError('The packaged app is missing imageio-ffmpeg')
             return os.path.join(BASE_DIR, 'ffmpeg', 'macos', 'ffmpeg')

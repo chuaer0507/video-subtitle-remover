@@ -1,9 +1,6 @@
 name: Build Windows CUDA 12.6
 
-on: 
-  push:
-    branches:
-      - '**'
+on:
   workflow_dispatch:
     inputs:
       ssh:

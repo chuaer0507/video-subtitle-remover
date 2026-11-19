@@ -1,5 +1,6 @@
 
 import os
+import sys
 from pathlib import Path
 from qfluentwidgets import (qconfig, ConfigItem, QConfig, OptionsValidator, BoolValidator, OptionsConfigItem, 
                             EnumSerializer, RangeValidator, RangeConfigItem, ConfigValidator)
@@ -7,13 +8,12 @@ from backend.tools.constant import InpaintMode, SubtitleDetectMode
 import configparser
 
 # 项目版本号
-VERSION = "1.4.0"
-PROJECT_HOME_URL = "https://github.com/YaoFANGUK/video-subtitle-remover"
+VERSION = "1.4.1"
+PROJECT_HOME_URL = "https://github.com/chuaer0507/video-subtitle-remover"
 PROJECT_ISSUES_URL = PROJECT_HOME_URL + "/issues"
 PROJECT_RELEASES_URL = PROJECT_HOME_URL + "/releases"
 PROJECT_UPDATE_URLS = [
-    "https://api.github.com/repos/YaoFANGUK/video-subtitle-remover/releases/latest",
-    "https://accelerate.xdow.net/api/repos/YaoFANGUK/video-subtitle-remover/releases/latest",
+    "https://api.github.com/repos/chuaer0507/video-subtitle-remover/releases/latest",
 ] 
 
 # 硬件加速选项开关
@@ -108,7 +108,12 @@ class Config(QConfig):
     # 视频保存目录
     saveDirectory = ConfigItem("Main", "SaveDirectory", "", ConfigValidator())
 
-CONFIG_FILE = 'config/config.json'
+if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+    config_dir = os.path.expanduser('~/Library/Application Support/VideoSubtitleRemover')
+    os.makedirs(config_dir, exist_ok=True)
+    CONFIG_FILE = os.path.join(config_dir, 'config.json')
+else:
+    CONFIG_FILE = 'config/config.json'
 config = Config()
 qconfig.load(CONFIG_FILE, config)
 

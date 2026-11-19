@@ -210,6 +210,12 @@ cd <源码所在目录>
   pip install -r requirements.txt
   ```
   > 基于Python3.13版本测试
+
+#### macOS 与 Windows 安装包
+
+向 GitHub 推送与 `backend/config.py` 中版本一致的 tag（例如 `v1.4.1`），只会触发 Windows 通用 CPU EXE 和 `Build macOS DMG` 的 Apple Silicon、Intel 两种构建。Windows DirectML、三个 CUDA 版本及 Docker 构建仍可在 Actions 页面手动运行。成功后在运行页面的 Artifacts 中下载对应平台的安装包：Windows 的 `*-exe` 压缩包包含 `.exe` 及其依赖目录，需完整解压后运行；macOS 的 `*-macos-apple-silicon` 或 `*-macos-intel` 压缩包包含 DMG，打开后将应用拖到 Applications。macOS 安装包采用临时签名，未进行 Apple 公证；如首次阻止打开，可在系统设置的“隐私与安全性”中允许。
+
+版本号取自 `backend/config.py`。第一次处理视频时，应用会在用户目录合并分卷模型，需要额外磁盘空间；模型不会写入已签名的应用包。
 #### 4. 运行程序
 
 - 运行图形化界面

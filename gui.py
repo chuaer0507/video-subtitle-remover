@@ -8,9 +8,13 @@
 
 import sys
 import os
+import multiprocessing
+if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+    # Finder starts apps outside the project directory; bundled assets live here.
+    os.chdir(sys._MEIPASS)
+    multiprocessing.freeze_support()
 import configparser
 import cv2
-import multiprocessing
 from PySide6.QtCore import Qt, QTranslator
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtWidgets import QApplication, QFrame, QStackedWidget, QHBoxLayout, QLabel

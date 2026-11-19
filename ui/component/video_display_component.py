@@ -1,4 +1,5 @@
 import cv2
+import sys
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QMenu
 from PySide6.QtCore import Qt, Signal, QRect, QRectF, QObject, QEvent
 from PySide6.QtGui import QAction, QShortcut, QCursor
@@ -13,6 +14,11 @@ class VideoDisplayComponent(QWidget):
     # 定义信号
     selections_changed = Signal(list)  # 选择框变化信号
     ab_sections_changed = Signal(list)  # AB分区变化信号
+
+    def _set_selection_cursor(self, shape):
+        """Avoid the native Qt cursor conversion that crashes on recent macOS."""
+        if sys.platform != 'darwin':
+            self.video_display.setCursor(shape)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -650,19 +656,19 @@ class VideoDisplayComponent(QWidget):
                 # 根据边缘类型设置光标
                 edge_type = self.get_resize_edge(pos, pixel_rect)
                 if edge_type == "left" or edge_type == "right":
-                    self.video_display.setCursor(Qt.SizeHorCursor)
+                    self._set_selection_cursor(Qt.SizeHorCursor)
                     return
                 elif edge_type == "top" or edge_type == "bottom":
-                    self.video_display.setCursor(Qt.SizeVerCursor)
+                    self._set_selection_cursor(Qt.SizeVerCursor)
                     return
                 elif edge_type == "topleft" or edge_type == "bottomright":
-                    self.video_display.setCursor(Qt.SizeFDiagCursor)
+                    self._set_selection_cursor(Qt.SizeFDiagCursor)
                     return
                 elif edge_type == "topright" or edge_type == "bottomleft":
-                    self.video_display.setCursor(Qt.SizeBDiagCursor)
+                    self._set_selection_cursor(Qt.SizeBDiagCursor)
                     return
             elif pixel_rect.contains(pos):
-                self.video_display.setCursor(Qt.SizeAllCursor)
+                self._set_selection_cursor(Qt.SizeAllCursor)
                 return
         
         # 如果没有活动选区或鼠标不在活动选区上，检查所有其他选区
@@ -689,24 +695,24 @@ class VideoDisplayComponent(QWidget):
                 # 根据边缘类型设置光标
                 edge_type = self.get_resize_edge(pos, pixel_rect)
                 if edge_type == "left" or edge_type == "right":
-                    self.video_display.setCursor(Qt.SizeHorCursor)
+                    self._set_selection_cursor(Qt.SizeHorCursor)
                     return
                 elif edge_type == "top" or edge_type == "bottom":
-                    self.video_display.setCursor(Qt.SizeVerCursor)
+                    self._set_selection_cursor(Qt.SizeVerCursor)
                     return
                 elif edge_type == "topleft" or edge_type == "bottomright":
-                    self.video_display.setCursor(Qt.SizeFDiagCursor)
+                    self._set_selection_cursor(Qt.SizeFDiagCursor)
                     return
                 elif edge_type == "topright" or edge_type == "bottomleft":
-                    self.video_display.setCursor(Qt.SizeBDiagCursor)
+                    self._set_selection_cursor(Qt.SizeBDiagCursor)
                     return
             # 检查鼠标是否在选择框内部
             elif pixel_rect.contains(pos):
-                self.video_display.setCursor(Qt.SizeAllCursor)
+                self._set_selection_cursor(Qt.SizeAllCursor)
                 return
         
         # 如果鼠标不在任何选区上，设置为默认光标
-        self.video_display.setCursor(Qt.ArrowCursor)
+        self._set_selection_cursor(Qt.ArrowCursor)
     
     def set_video_parameters(self, frame_width, frame_height, 
                              scaled_width=None, scaled_height=None, 
@@ -811,7 +817,7 @@ class VideoDisplayComponent(QWidget):
         """设置拖动器是否可用"""
         self.enable_mouse_events = enabled
         self.video_display.setMouseTracking(enabled)
-        self.video_display.setCursor(Qt.ArrowCursor)
+        self._set_selection_cursor(Qt.ArrowCursor)
 
     def save_selections_to_config(self):
         """保存所有选择框的相对位置和大小"""

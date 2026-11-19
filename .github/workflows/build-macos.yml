@@ -1,0 +1,96 @@
+name: Build macOS DMG
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: apple-silicon
+            machine: arm64
+            runner: macos-15
+          - arch: intel
+            machine: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Read version and architecture
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' backend/config.py)
+          test -n "$VERSION"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            test "$GITHUB_REF_NAME" = "v$VERSION"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          test "$(uname -m)" = '${{ matrix.machine }}'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install paddlepaddle==3.0.0
+          if [[ '${{ matrix.machine }}' == x86_64 ]]; then
+            python -m pip install 'numpy==1.26.4' 'torch==2.2.2' 'torchvision==0.17.2'
+            sed 's/^numpy==2.2.5$/numpy==1.26.4/' requirements.txt > /tmp/vsr-intel-requirements.txt
+            python -m pip install -r /tmp/vsr-intel-requirements.txt
+          else
+            python -m pip install torch==2.7.0 torchvision==0.22.0
+            python -m pip install -r requirements.txt
+          fi
+          python -m pip install pyinstaller
+          python -m pip check
+
+      - name: Package app
+        run: |
+          python -m PyInstaller --noconfirm --clean --windowed --onedir \
+            --name VideoSubtitleRemover \
+            --osx-bundle-identifier com.chuaer.video-subtitle-remover \
+            --icon design/vsr.ico \
+            --add-data 'backend/models:backend/models' \
+            --add-data 'backend/interface:backend/interface' \
+            --add-data 'design/vsr.ico:design' \
+            --collect-all paddle \
+            --collect-all paddleocr \
+            --collect-all paddlex \
+            --collect-all torch \
+            --collect-all torchvision \
+            --collect-all imageio_ffmpeg \
+            gui.py
+          test -d dist/VideoSubtitleRemover.app
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" dist/VideoSubtitleRemover.app/Contents/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" dist/VideoSubtitleRemover.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" dist/VideoSubtitleRemover.app/Contents/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VERSION" dist/VideoSubtitleRemover.app/Contents/Info.plist
+          codesign --force --deep --sign - dist/VideoSubtitleRemover.app
+          codesign --verify --deep --strict dist/VideoSubtitleRemover.app
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg-root
+          cp -R dist/VideoSubtitleRemover.app dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "VideoSubtitleRemover $VERSION (${{ matrix.arch }})" \
+            -srcfolder dmg-root -ov -format UDZO \
+            "vsr-v${VERSION}-macos-${{ matrix.arch }}.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsr-v${{ env.VERSION }}-macos-${{ matrix.arch }}
+          path: vsr-v${{ env.VERSION }}-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error

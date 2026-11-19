@@ -1,9 +1,9 @@
 name: Build Windows CPU
 
-on: 
+on:
   push:
-    branches:
-      - '**'
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       ssh:
@@ -12,17 +12,21 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v4
     - name: 读取 VERSION
       id: version
       run: |
         VERSION=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' backend/config.py)
+        test -n "$VERSION"
+        if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+          test "$GITHUB_REF_NAME" = "v$VERSION"
+        fi
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       shell: bash
@@ -49,7 +53,7 @@ jobs:
     - name: 获取 site-packages 路径
       shell: bash
       run: |
-        SITE_PACKAGES=$(python -c "import site, os; print(os.path.join(site.getsitepackages()[0], 'Lib', 'site-packages'))")
+        SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
         SITE_PACKAGES_UNIX=$(cygpath -u "$SITE_PACKAGES")
         echo "site-packages路径: $SITE_PACKAGES"
         echo "site-packages UNIX路径: $SITE_PACKAGES_UNIX"
@@ -69,30 +73,12 @@ jobs:
       env:
         QPT_Action: "True"
       shell: bash
-    - name: 上传 Debug 文件夹到 Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: vsr-v${{ env.VERSION }}-windows-cpu-debug
-        path: vsr_out/Debug/
-    - name: 上传 Release 文件夹到 Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: vsr-v${{ env.VERSION }}-windows-cpu-release
-        path: vsr_out/Release/
-    - name: 打包 Release 文件夹
-      run: |
-        cd vsr_out/Release
-        7z a -t7z -mx=9 -m0=LZMA2 -ms=on -mfb=64 -md=32m -mmt=on -v2000m vsr-v${{ env.VERSION }}-windows-cpu.7z * && \
-        # 检测是否只有一个分卷
-        if [ -f vsr-v${{ env.VERSION }}-windows-cpu.7z.001 ] && [ ! -f vsr-v${{ env.VERSION }}-windows-cpu.7z.002 ]; then \
-          mv vsr-v${{ env.VERSION }}-windows-cpu.7z.001 vsr-v${{ env.VERSION }}-windows-cpu.7z; fi
+    - name: Verify Windows EXE
       shell: bash
-    - name: Release
-      uses: softprops/action-gh-release@v1
+      run: test -n "$(find vsr_out/Release -maxdepth 1 -iname '*.exe' -print -quit)"
+    - name: Upload Windows EXE and dependencies
+      uses: actions/upload-artifact@v4
       with:
-        prerelease: true
-        tag_name: ${{ env.VERSION }}
-        target_commitish: ${{ github.sha }}
-        name: 硬字幕去除器 v${{ env.VERSION }}
-        files: |
-          vsr_out/Release/vsr-v${{ env.VERSION }}-windows-cpu.7z*
+        name: vsr-v${{ env.VERSION }}-windows-cpu-exe
+        path: vsr_out/Release/
+        if-no-files-found: error

@@ -1,9 +1,6 @@
 name: Build Windows DirectML
 
-on: 
-  push:
-    branches:
-      - '**'
+on:
   workflow_dispatch:
     inputs:
       ssh:
